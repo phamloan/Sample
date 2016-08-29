@@ -1,0 +1,2 @@
+0000000000000000000000000000000000000000 fd51c9476d72ddf53ed4d9c51ebff897d9582d73 phamloan <your.ailoan2994@gmail.com> 1472004927 +0700	branch: Created from HEAD
+fd51c9476d72ddf53ed4d9c51ebff897d9582d73 52d08b4c6b1e76da05bd85248b26a3c161c54528 phamloan <your.ailoan2994@gmail.com> 1472009712 +0700	commit: Make a basic User model (including secure passwords)

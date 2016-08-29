@@ -1,0 +1,558 @@
+[33mcommit 5e03232eafd2d0da4cff89affec7be9867b6b1ec[m
+Author: phamloan <your.ailoan2994@gmail.com>
+Date:   Thu Aug 25 15:48:39 2016 +0700
+
+    Finish user edit, update, index, and destroy actions
+
+[1mdiff --git a/Gemfile b/Gemfile[m
+[1mindex 3a33874..2edcbaf 100644[m
+[1m--- a/Gemfile[m
+[1m+++ b/Gemfile[m
+[36m@@ -2,6 +2,9 @@[m [msource 'https://rubygems.org'[m
+ [m
+ gem 'rails',        '5.0.0.1'[m
+ gem 'bcrypt',         '3.1.11'[m
+[32m+[m[32mgem 'faker',          '1.6.3'[m
+[32m+[m[32mgem 'will_paginate',           '3.1.0'[m
+[32m+[m[32mgem 'bootstrap-will_paginate', '0.0.10'[m
+ gem 'bootstrap-sass', '3.3.6'[m
+ gem 'puma',         '3.4.0'[m
+ gem 'sass-rails',   '5.0.6'[m
+[1mdiff --git a/Gemfile.lock b/Gemfile.lock[m
+[1mindex 90801ab..6e09b7f 100644[m
+[1m--- a/Gemfile.lock[m
+[1m+++ b/Gemfile.lock[m
+[36m@@ -46,6 +46,8 @@[m [mGEM[m
+     bootstrap-sass (3.3.6)[m
+       autoprefixer-rails (>= 5.2.1)[m
+       sass (>= 3.3.4)[m
+[32m+[m[32m    bootstrap-will_paginate (0.0.10)[m
+[32m+[m[32m      will_paginate[m
+     builder (3.2.2)[m
+     byebug (9.0.0)[m
+     coderay (1.1.1)[m
+[36m@@ -60,6 +62,8 @@[m [mGEM[m
+     debug_inspector (0.0.2)[m
+     erubis (2.7.0)[m
+     execjs (2.7.0)[m
+[32m+[m[32m    faker (1.6.3)[m
+[32m+[m[32m      i18n (~> 0.5)[m
+     ffi (1.9.14)[m
+     formatador (0.2.5)[m
+     globalid (0.3.7)[m
+[36m@@ -193,6 +197,7 @@[m [mGEM[m
+     websocket-driver (0.6.4)[m
+       websocket-extensions (>= 0.1.0)[m
+     websocket-extensions (0.1.2)[m
+[32m+[m[32m    will_paginate (3.1.0)[m
+ [m
+ PLATFORMS[m
+   ruby[m
+[36m@@ -200,8 +205,10 @@[m [mPLATFORMS[m
+ DEPENDENCIES[m
+   bcrypt (= 3.1.11)[m
+   bootstrap-sass (= 3.3.6)[m
+[32m+[m[32m  bootstrap-will_paginate (= 0.0.10)[m
+   byebug (= 9.0.0)[m
+   coffee-rails (= 4.2.1)[m
+[32m+[m[32m  faker (= 1.6.3)[m
+   guard (= 2.13.0)[m
+   guard-minitest (= 2.4.4)[m
+   jbuilder (= 2.4.1)[m
+[36m@@ -220,6 +227,7 @@[m [mDEPENDENCIES[m
+   tzinfo-data[m
+   uglifier (= 3.0.0)[m
+   web-console (= 3.1.1)[m
+[32m+[m[32m  will_paginate (= 3.1.0)[m
+ [m
+ BUNDLED WITH[m
+    1.12.5[m
+[1mdiff --git a/app/assets/stylesheets/custom.scss b/app/assets/stylesheets/custom.scss[m
+[1mindex a08c4e4..2359e0e 100644[m
+[1m--- a/app/assets/stylesheets/custom.scss[m
+[1m+++ b/app/assets/stylesheets/custom.scss[m
+[36m@@ -191,3 +191,15 @@[m [minput {[m
+   width: auto;[m
+   margin-left: 0;[m
+ }[m
+[32m+[m
+[32m+[m[32m/* Users index */[m
+[32m+[m
+[32m+[m[32m.users {[m
+[32m+[m[32m  list-style: none;[m
+[32m+[m[32m  margin: 0;[m
+[32m+[m[32m  li {[m
+[32m+[m[32m    overflow: auto;[m
+[32m+[m[32m    padding: 10px 0;[m
+[32m+[m[32m    border-bottom: 1px solid $gray-lighter;[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[1mdiff --git a/app/controllers/sessions_controller.rb b/app/controllers/sessions_controller.rb[m
+[1mindex a3d346a..fd3ce8d 100644[m
+[1m--- a/app/controllers/sessions_controller.rb[m
+[1m+++ b/app/controllers/sessions_controller.rb[m
+[36m@@ -8,7 +8,7 @@[m [mclass SessionsController < ApplicationController[m
+     if user && user.authenticate(params[:session][:password])[m
+       log_in user[m
+       params[:session][:remember_me] == '1' ? remember(user) : forget(user)[m
+[31m-      redirect_to user[m
+[32m+[m[32m      redirect_back_or user[m
+     else[m
+       flash.now[:danger] = 'Invalid email/password combination'[m
+       render 'new'[m
+[1mdiff --git a/app/controllers/users_controller.rb b/app/controllers/users_controller.rb[m
+[1mindex 3532587..bc010be 100644[m
+[1m--- a/app/controllers/users_controller.rb[m
+[1m+++ b/app/controllers/users_controller.rb[m
+[36m@@ -1,4 +1,11 @@[m
+ class UsersController < ApplicationController[m
+[32m+[m[32m  before_action :logged_in_user, only: [:index, :edit, :update, :destroy][m
+[32m+[m[32m  before_action :correct_user,   only: [:edit, :update][m
+[32m+[m[32m  before_action :admin_user,     only: :destroy[m
+[32m+[m
+[32m+[m[32m  def index[m
+[32m+[m[32m    @users = User.paginate(page: params[:page])[m
+[32m+[m[32m  end[m
+ [m
+   def show[m
+     @user = User.find(params[:id])[m
+[36m@@ -19,10 +26,50 @@[m [mclass UsersController < ApplicationController[m
+     end[m
+   end[m
+ [m
+[32m+[m[32m  def edit[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  def update[m
+[32m+[m[32m    if @user.update_attributes(user_params)[m
+[32m+[m[32m      flash[:success] = "Profile updated"[m
+[32m+[m[32m      redirect_to @user[m
+[32m+[m[32m    else[m
+[32m+[m[32m      render 'edit'[m
+[32m+[m[32m    end[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  def destroy[m
+[32m+[m[32m    User.find(params[:id]).destroy[m
+[32m+[m[32m    flash[:success] = "User deleted"[m
+[32m+[m[32m    redirect_to users_url[m
+[32m+[m[32m  end[m
+[32m+[m
+   private[m
+ [m
+     def user_params[m
+       params.require(:user).permit(:name, :email, :password,[m
+                                    :password_confirmation)[m
+     end[m
+[32m+[m
+[32m+[m[32m    # Before filters[m
+[32m+[m
+[32m+[m[32m    # Confirms a logged-in user.[m
+[32m+[m[32m    def logged_in_user[m
+[32m+[m[32m      unless logged_in?[m
+[32m+[m[32m        store_location[m
+[32m+[m[32m        flash[:danger] = "Please log in."[m
+[32m+[m[32m        redirect_to login_url[m
+[32m+[m[32m      end[m
+[32m+[m[32m    end[m
+[32m+[m
+[32m+[m[32m    # Confirms the correct user.[m
+[32m+[m[32m    def correct_user[m
+[32m+[m[32m      @user = User.find(params[:id])[m
+[32m+[m[32m      redirect_to(root_url) unless current_user?(@user)[m
+[32m+[m[32m    end[m
+[32m+[m
+[32m+[m[32m    # Confirms an admin user.[m
+[32m+[m[32m    def admin_user[m
+[32m+[m[32m      redirect_to(root_url) unless current_user.admin?[m
+[32m+[m[32m    end[m
+ end[m
+[1mdiff --git a/app/helpers/sessions_helper.rb b/app/helpers/sessions_helper.rb[m
+[1mindex 8ee1ca8..677af69 100644[m
+[1m--- a/app/helpers/sessions_helper.rb[m
+[1m+++ b/app/helpers/sessions_helper.rb[m
+[36m@@ -12,6 +12,11 @@[m [mmodule SessionsHelper[m
+     cookies.permanent[:remember_token] = user.remember_token[m
+   end[m
+ [m
+[32m+[m[32m  # Returns true if the given user is the current user.[m
+[32m+[m[32m  def current_user?(user)[m
+[32m+[m[32m    user == current_user[m
+[32m+[m[32m  end[m
+[32m+[m
+   # Returns the user corresponding to the remember token cookie.[m
+   def current_user[m
+     if (user_id = session[:user_id])[m
+[36m@@ -49,4 +54,15 @@[m [mmodule SessionsHelper[m
+     session.delete(:user_id)[m
+     @current_user = nil[m
+   end[m
+[32m+[m
+[32m+[m[32m  # Redirects to stored location (or to the default).[m
+[32m+[m[32m  def redirect_back_or(default)[m
+[32m+[m[32m    redirect_to(session[:forwarding_url] || default)[m
+[32m+[m[32m    session.delete(:forwarding_url)[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  # Stores the URL trying to be accessed.[m
+[32m+[m[32m  def store_location[m
+[32m+[m[32m    session[:forwarding_url] = request.original_url if request.get?[m
+[32m+[m[32m  end[m
+ end[m
+[1mdiff --git a/app/helpers/users_helper.rb b/app/helpers/users_helper.rb[m
+[1mindex 0c0a8d5..3df309e 100644[m
+[1m--- a/app/helpers/users_helper.rb[m
+[1m+++ b/app/helpers/users_helper.rb[m
+[36m@@ -1,9 +1,10 @@[m
+ module UsersHelper[m
+ [m
+   # Returns the Gravatar for the given user.[m
+[31m-  def gravatar_for(user)[m
+[32m+[m[32m  def gravatar_for(user, options = { size: 80 })[m
+     gravatar_id = Digest::MD5::hexdigest(user.email.downcase)[m
+[31m-    gravatar_url = "https://secure.gravatar.com/avatar/#{gravatar_id}"[m
+[32m+[m[32m    size = options[:size][m
+[32m+[m[32m    gravatar_url = "https://secure.gravatar.com/avatar/#{gravatar_id}?s=#{size}"[m
+     image_tag(gravatar_url, alt: user.name, class: "gravatar")[m
+   end[m
+ end[m
+[1mdiff --git a/app/models/user.rb b/app/models/user.rb[m
+[1mindex 2c8fd1e..05ea0de 100644[m
+[1m--- a/app/models/user.rb[m
+[1m+++ b/app/models/user.rb[m
+[36m@@ -7,7 +7,7 @@[m [mclass User < ApplicationRecord[m
+                     format: { with: VALID_EMAIL_REGEX },[m
+                     uniqueness: { case_sensitive: false }[m
+   has_secure_password[m
+[31m-  validates :password, presence: true, length: { minimum: 6 }[m
+[32m+[m[32m  validates :password, presence: true, length: { minimum: 6 }, allow_nil: true[m
+ [m
+   # Returns the hash digest of the given string.[m
+   def User.digest(string)[m
+[1mdiff --git a/app/views/layouts/_header.html.erb b/app/views/layouts/_header.html.erb[m
+[1mindex f6540b3..09f4ee1 100644[m
+[1m--- a/app/views/layouts/_header.html.erb[m
+[1m+++ b/app/views/layouts/_header.html.erb[m
+[36m@@ -6,14 +6,14 @@[m
+         <li><%= link_to "Home", root_path %></li>[m
+         <li><%= link_to "Help", help_path %></li>[m
+         <% if logged_in? %>[m
+[31m-          <li><%= link_to "Users", '#' %></li>[m
+[32m+[m[32m          <li><%= link_to "Users", users_path %></li>[m
+           <li class="dropdown">[m
+             <a href="#" class="dropdown-toggle" data-toggle="dropdown">[m
+               Account <b class="caret"></b>[m
+             </a>[m
+             <ul class="dropdown-menu">[m
+               <li><%= link_to "Profile", current_user %></li>[m
+[31m-              <li><%= link_to "Settings", '#' %></li>[m
+[32m+[m[32m              <li><%= link_to "Settings", edit_user_path(current_user) %></li>[m
+               <li class="divider"></li>[m
+               <li>[m
+                 <%= link_to "Log out", logout_path, method: "delete" %>[m
+[1mdiff --git a/app/views/users/_user.html.erb b/app/views/users/_user.html.erb[m
+[1mnew file mode 100644[m
+[1mindex 0000000..46216ec[m
+[1m--- /dev/null[m
+[1m+++ b/app/views/users/_user.html.erb[m
+[36m@@ -0,0 +1,8 @@[m
+[32m+[m[32m<li>[m
+[32m+[m[32m  <%= gravatar_for user, size: 50 %>[m
+[32m+[m[32m  <%= link_to user.name, user %>[m
+[32m+[m[32m  <% if current_user.admin? && !current_user?(user) %>[m
+[32m+[m[32m    | <%= link_to "delete", user, method: :delete,[m
+[32m+[m[32m                                  data: { confirm: "You sure?" } %>[m
+[32m+[m[32m  <% end %>[m
+[32m+[m[32m</li>[m
+[1mdiff --git a/app/views/users/edit.html.erb b/app/views/users/edit.html.erb[m
+[1mnew file mode 100644[m
+[1mindex 0000000..a697fd3[m
+[1m--- /dev/null[m
+[1m+++ b/app/views/users/edit.html.erb[m
+[36m@@ -0,0 +1,29 @@[m
+[32m+[m[32m<% provide(:title, "Edit user") %>[m
+[32m+[m[32m<h1>Update your profile</h1>[m
+[32m+[m
+[32m+[m[32m<div class="row">[m
+[32m+[m[32m  <div class="col-md-6 col-md-offset-3">[m
+[32m+[m[32m    <%= form_for(@user) do |f| %>[m
+[32m+[m[32m      <%= render 'shared/error_messages' %>[m
+[32m+[m
+[32m+[m[32m      <%= f.label :name %>[m
+[32m+[m[32m      <%= f.text_field :name, class: 'form-control' %>[m
+[32m+[m
+[32m+[m[32m      <%= f.label :email %>[m
+[32m+[m[32m      <%= f.email_field :email, class: 'form-control' %>[m
+[32m+[m
+[32m+[m[32m      <%= f.label :password %>[m
+[32m+[m[32m      <%= f.password_field :password, class: 'form-control' %>[m
+[32m+[m
+[32m+[m[32m      <%= f.label :password_confirmation, "Confirmation" %>[m
+[32m+[m[32m      <%= f.password_field :password_confirmation, class: 'form-control' %>[m
+[32m+[m
+[32m+[m[32m      <%= f.submit "Save changes", class: "btn btn-primary" %>[m
+[32m+[m[32m    <% end %>[m
+[32m+[m
+[32m+[m[32m    <div class="gravatar_edit">[m
+[32m+[m[32m      <%= gravatar_for @user %>[m
+[32m+[m[32m      <a href="http://gravatar.com/emails" target="_blank">change</a>[m
+[32m+[m[32m    </div>[m
+[32m+[m[32m  </div>[m
+[32m+[m[32m</div>[m
+[1mdiff --git a/app/views/users/index.html.erb b/app/views/users/index.html.erb[m
+[1mnew file mode 100644[m
+[1mindex 0000000..5b6dbae[m
+[1m--- /dev/null[m
+[1m+++ b/app/views/users/index.html.erb[m
+[36m@@ -0,0 +1,10 @@[m
+[32m+[m[32m<% provide(:title, 'All users') %>[m
+[32m+[m[32m<h1>All users</h1>[m
+[32m+[m
+[32m+[m[32m<%= will_paginate %>[m
+[32m+[m
+[32m+[m[32m<ul class="users">[m
+[32m+[m[32m  <%= render @users %>[m
+[32m+[m[32m</ul>[m
+[32m+[m
+[32m+[m[32m<%= will_paginate %>[m
+[1mdiff --git a/db/migrate/20160825082235_add_admin_to_users.rb b/db/migrate/20160825082235_add_admin_to_users.rb[m
+[1mnew file mode 100644[m
+[1mindex 0000000..0e24076[m
+[1m--- /dev/null[m
+[1m+++ b/db/migrate/20160825082235_add_admin_to_users.rb[m
+[36m@@ -0,0 +1,5 @@[m
+[32m+[m[32mclass AddAdminToUsers < ActiveRecord::Migration[5.0][m
+[32m+[m[32m  def change[m
+[32m+[m[32m    add_column :users, :admin, :boolean, default: false[m
+[32m+[m[32m  end[m
+[32m+[m[32mend[m
+[1mdiff --git a/db/schema.rb b/db/schema.rb[m
+[1mindex 17f6089..e1544da 100644[m
+[1m--- a/db/schema.rb[m
+[1m+++ b/db/schema.rb[m
+[36m@@ -10,15 +10,16 @@[m
+ #[m
+ # It's strongly recommended that you check this file into your version control system.[m
+ [m
+[31m-ActiveRecord::Schema.define(version: 20160824094928) do[m
+[32m+[m[32mActiveRecord::Schema.define(version: 20160825082235) do[m
+ [m
+   create_table "users", force: :cascade do |t|[m
+     t.string   "name"[m
+     t.string   "email"[m
+[31m-    t.datetime "created_at",      null: false[m
+[31m-    t.datetime "updated_at",      null: false[m
+[32m+[m[32m    t.datetime "created_at",                      null: false[m
+[32m+[m[32m    t.datetime "updated_at",                      null: false[m
+     t.string   "password_digest"[m
+     t.string   "remember_digest"[m
+[32m+[m[32m    t.boolean  "admin",           default: false[m
+     t.index ["email"], name: "index_users_on_email", unique: true[m
+   end[m
+ [m
+[1mdiff --git a/db/seeds.rb b/db/seeds.rb[m
+[1mindex 1beea2a..faa6f69 100644[m
+[1m--- a/db/seeds.rb[m
+[1m+++ b/db/seeds.rb[m
+[36m@@ -1,7 +1,15 @@[m
+[31m-# This file should contain all the record creation needed to seed the database with its default values.[m
+[31m-# The data can then be loaded with the rails db:seed command (or created alongside the database with db:setup).[m
+[31m-#[m
+[31m-# Examples:[m
+[31m-#[m
+[31m-#   movies = Movie.create([{ name: 'Star Wars' }, { name: 'Lord of the Rings' }])[m
+[31m-#   Character.create(name: 'Luke', movie: movies.first)[m
+[32m+[m[32mUser.create!(name:  "Example User",[m
+[32m+[m[32m             email: "example@railstutorial.org",[m
+[32m+[m[32m             password:              "foobar",[m
+[32m+[m[32m             password_confirmation: "foobar",[m
+[32m+[m[32m             admin: true)[m
+[32m+[m
+[32m+[m[32m99.times do |n|[m
+[32m+[m[32m  name  = Faker::Name.name[m
+[32m+[m[32m  email = "example-#{n+1}@railstutorial.org"[m
+[32m+[m[32m  password = "password"[m
+[32m+[m[32m  User.create!(name:  name,[m
+[32m+[m[32m               email: email,[m
+[32m+[m[32m               password:              password,[m
+[32m+[m[32m               password_confirmation: password)[m
+[32m+[m[32mend[m
+[1mdiff --git a/test/controllers/users_controller_test.rb b/test/controllers/users_controller_test.rb[m
+[1mindex f9fef98..83db5d3 100644[m
+[1m--- a/test/controllers/users_controller_test.rb[m
+[1m+++ b/test/controllers/users_controller_test.rb[m
+[36m@@ -1,9 +1,62 @@[m
+ require 'test_helper'[m
+ [m
+ class UsersControllerTest < ActionDispatch::IntegrationTest[m
+[32m+[m
+[32m+[m[32m  def setup[m
+[32m+[m[32m    @user       = users(:michael)[m
+[32m+[m[32m    @other_user = users(:archer)[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "should redirect index when not logged in" do[m
+[32m+[m[32m    get users_path[m
+[32m+[m[32m    assert_redirected_to login_url[m
+[32m+[m[32m  end[m
+[32m+[m
+   test "should get new" do[m
+     get signup_path[m
+     assert_response :success[m
+   end[m
+ [m
+[32m+[m[32m  test "should redirect edit when not logged in" do[m
+[32m+[m[32m    get edit_user_path(@user)[m
+[32m+[m[32m    assert_not flash.empty?[m
+[32m+[m[32m    assert_redirected_to login_url[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "should redirect update when not logged in" do[m
+[32m+[m[32m    patch user_path(@user), params: { user: { name: @user.name,[m
+[32m+[m[32m                                              email: @user.email } }[m
+[32m+[m[32m    assert_not flash.empty?[m
+[32m+[m[32m    assert_redirected_to login_url[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "should redirect edit when logged in as wrong user" do[m
+[32m+[m[32m    log_in_as(@other_user)[m
+[32m+[m[32m    get edit_user_path(@user)[m
+[32m+[m[32m    assert flash.empty?[m
+[32m+[m[32m    assert_redirected_to root_url[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "should redirect update when logged in as wrong user" do[m
+[32m+[m[32m    log_in_as(@other_user)[m
+[32m+[m[32m    patch user_path(@user), params: { user: { name: @user.name,[m
+[32m+[m[32m                                              email: @user.email } }[m
+[32m+[m[32m    assert flash.empty?[m
+[32m+[m[32m    assert_redirected_to root_url[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "should redirect destroy when not logged in" do[m
+[32m+[m[32m    assert_no_difference 'User.count' do[m
+[32m+[m[32m      delete user_path(@user)[m
+[32m+[m[32m    end[m
+[32m+[m[32m    assert_redirected_to login_url[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "should redirect destroy when logged in as a non-admin" do[m
+[32m+[m[32m    log_in_as(@other_user)[m
+[32m+[m[32m    assert_no_difference 'User.count' do[m
+[32m+[m[32m      delete user_path(@user)[m
+[32m+[m[32m    end[m
+[32m+[m[32m    assert_redirected_to root_url[m
+[32m+[m[32m  end[m
+ end[m
+[1mdiff --git a/test/fixtures/users.yml b/test/fixtures/users.yml[m
+[1mindex 15c7835..099a1b0 100644[m
+[1m--- a/test/fixtures/users.yml[m
+[1m+++ b/test/fixtures/users.yml[m
+[36m@@ -2,3 +2,26 @@[m [mmichael:[m
+   name: Michael Example[m
+   email: michael@example.com[m
+   password_digest: <%= User.digest('password') %>[m
+[32m+[m[32m  admin: true[m
+[32m+[m
+[32m+[m[32marcher:[m
+[32m+[m[32m  name: Sterling Archer[m
+[32m+[m[32m  email: duchess@example.gov[m
+[32m+[m[32m  password_digest: <%= User.digest('password') %>[m
+[32m+[m
+[32m+[m[32mlana:[m
+[32m+[m[32m  name: Lana Kane[m
+[32m+[m[32m  email: hands@example.gov[m
+[32m+[m[32m  password_digest: <%= User.digest('password') %>[m
+[32m+[m
+[32m+[m[32mmalory:[m
+[32m+[m[32m  name: Malory Archer[m
+[32m+[m[32m  email: boss@example.gov[m
+[32m+[m[32m  password_digest: <%= User.digest('password') %>[m
+[32m+[m
+[32m+[m[32m<% 30.times do |n| %>[m
+[32m+[m[32muser_<%= n %>:[m
+[32m+[m[32m  name:  <%= "User #{n}" %>[m
+[32m+[m[32m  email: <%= "user-#{n}@example.com" %>[m
+[32m+[m[32m  password_digest: <%= User.digest('password') %>[m
+[32m+[m[32m<% end %>[m
+[1mdiff --git a/test/integration/users_edit_test.rb b/test/integration/users_edit_test.rb[m
+[1mnew file mode 100644[m
+[1mindex 0000000..71c410d[m
+[1m--- /dev/null[m
+[1m+++ b/test/integration/users_edit_test.rb[m
+[36m@@ -0,0 +1,37 @@[m
+[32m+[m[32mrequire 'test_helper'[m
+[32m+[m
+[32m+[m[32mclass UsersEditTest < ActionDispatch::IntegrationTest[m
+[32m+[m
+[32m+[m[32m  def setup[m
+[32m+[m[32m    @user = users(:michael)[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "unsuccessful edit" do[m
+[32m+[m[32m    log_in_as(@user)[m
+[32m+[m[32m    get edit_user_path(@user)[m
+[32m+[m[32m    assert_template 'users/edit'[m
+[32m+[m[32m    patch user_path(@user), params: { user: { name:  "",[m
+[32m+[m[32m                                              email: "foo@invalid",[m
+[32m+[m[32m                                              password:              "foo",[m
+[32m+[m[32m                                              password_confirmation: "bar" } }[m
+[32m+[m
+[32m+[m[32m    assert_template 'users/edit'[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "successful edit with friendly forwarding" do[m
+[32m+[m[32m    get edit_user_path(@user)[m
+[32m+[m[32m    log_in_as(@user)[m
+[32m+[m[32m    assert_redirected_to edit_user_path(@user)[m
+[32m+[m[32m    name  = "Foo Bar"[m
+[32m+[m[32m    email = "foo@bar.com"[m
+[32m+[m[32m    patch user_path(@user), params: { user: { name:  name,[m
+[32m+[m[32m                                              email: email,[m
+[32m+[m[32m                                              password:              "",[m
+[32m+[m[32m                                              password_confirmation: "" } }[m
+[32m+[m[32m    assert_not flash.empty?[m
+[32m+[m[32m    assert_redirected_to @user[m
+[32m+[m[32m    @user.reload[m
+[32m+[m[32m    assert_equal name,  @user.name[m
+[32m+[m[32m    assert_equal email, @user.email[m
+[32m+[m[32m  end[m
+[32m+[m[32mend[m
+[1mdiff --git a/test/integration/users_index_test.rb b/test/integration/users_index_test.rb[m
+[1mnew file mode 100644[m
+[1mindex 0000000..3f7cf44[m
+[1m--- /dev/null[m
+[1m+++ b/test/integration/users_index_test.rb[m
+[36m@@ -0,0 +1,32 @@[m
+[32m+[m[32mrequire 'test_helper'[m
+[32m+[m
+[32m+[m[32mclass UsersIndexTest < ActionDispatch::IntegrationTest[m
+[32m+[m
+[32m+[m[32m  def setup[m
+[32m+[m[32m    @admin     = users(:michael)[m
+[32m+[m[32m    @non_admin = users(:archer)[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "index as admin including pagination and delete links" do[m
+[32m+[m[32m    log_in_as(@admin)[m
+[32m+[m[32m    get users_path[m
+[32m+[m[32m    assert_template 'users/index'[m
+[32m+[m[32m    assert_select 'div.pagination'[m
+[32m+[m[32m    first_page_of_users = User.paginate(page: 1)[m
+[32m+[m[32m    first_page_of_users.each do |user|[m
+[32m+[m[32m      assert_select 'a[href=?]', user_path(user), text: user.name[m
+[32m+[m[32m      unless user == @admin[m
+[32m+[m[32m        assert_select 'a[href=?]', user_path(user), text: 'delete'[m
+[32m+[m[32m      end[m
+[32m+[m[32m    end[m
+[32m+[m[32m    assert_difference 'User.count', -1 do[m
+[32m+[m[32m      delete user_path(@non_admin)[m
+[32m+[m[32m    end[m
+[32m+[m[32m  end[m
+[32m+[m
+[32m+[m[32m  test "index as non-admin" do[m
+[32m+[m[32m    log_in_as(@non_admin)[m
+[32m+[m[32m    get users_path[m
+[32m+[m[32m    assert_select 'a', text: 'delete', count: 0[m
+[32m+[m[32m  end[m
+[32m+[m[32mend[m

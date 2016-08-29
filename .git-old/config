@@ -1,0 +1,46 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+[remote "origin"]
+	url = https://github.com/phamloan/Sample-app.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "master"]
+	remote = origin
+	merge = refs/heads/master
+[branch "static-pages"]
+	remote = origin
+	merge = refs/heads/static-pages
+[branch "rails-flavored-ruby"]
+	remote = origin
+	merge = refs/heads/rails-flavored-ruby
+[remote "heroku"]
+	url = https://git.heroku.com/ailoan.git
+	fetch = +refs/heads/*:refs/remotes/heroku/*
+[branch "filling-in-layout"]
+	remote = origin
+	merge = refs/heads/filling-in-layout
+[branch "modeling-users"]
+	remote = origin
+	merge = refs/heads/modeling-users
+[branch "sign-up"]
+	remote = origin
+	merge = refs/heads/sign-up
+[branch "basic-login"]
+	remote = origin
+	merge = refs/heads/basic-login
+[branch "advanced-login"]
+	remote = origin
+	merge = refs/heads/advanced-login
+[branch "updating-users"]
+	remote = origin
+	merge = refs/heads/updating-users
+[branch "account-activation"]
+	remote = origin
+	merge = refs/heads/account-activation
+[http]
+	postBuffer = 524288000
+[remote "pi"]
+	url = git@XXX.XXX.XXX.XXX:/home/git/Hello-World.git
+	fetch = +refs/heads/*:refs/remotes/pi/*
